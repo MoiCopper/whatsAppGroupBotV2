@@ -5,10 +5,16 @@ import Cache from '../utils/Cache';
 import eventBus from '../../eventBus';
 import { DomainEvent, DomainEventType, MemberMessageSentPayload } from '../types/domainEvents';
 
+type WriteOperation = () => Promise<void>;
+
 export default class DbRepository {
     private dbPath: string;
     private cache: Cache<DB>;
-    private readonly CACHE_TTL_MS = 5000; // 5 segundos de cache para o DB completo
+    private readonly CACHE_TTL_MS = 30000; // 30 segundos de cache para o DB completo (aumentado de 5s)
+    private writeQueue: Promise<void> = Promise.resolve(); // Fila de escrita para serializar operações
+    private isWriting: boolean = false; // Lock para operações de escrita
+    private debounceTimers: Map<string, NodeJS.Timeout> = new Map(); // Debounce por chave (groupId:memberId)
+    private readonly DEBOUNCE_MS = 1000; // 1 segundo de debounce para saveMember
 
     constructor(dbPath?: string) {
         this.dbPath = dbPath || join(process.cwd(), 'db.json');
@@ -23,7 +29,8 @@ export default class DbRepository {
             const member = group?.members[memberId];
 
             if(!member || member.name === '') {
-                this.saveMember(groupId, {
+                // Usa debounce para evitar múltiplas escritas do mesmo membro
+                this.saveMemberDebounced(groupId, {
                     id: memberId, 
                     name: name, 
                     isAdmin: isAdmin, 
@@ -62,6 +69,7 @@ export default class DbRepository {
 
     /**
      * Carrega o banco de dados do arquivo JSON
+     * Thread-safe: múltiplas leituras podem acontecer simultaneamente
      */
     private async loadDb(): Promise<DB> {
         // Verifica cache primeiro
@@ -83,7 +91,7 @@ export default class DbRepository {
             if (error.code === 'ENOENT') {
                 // Arquivo não existe, retorna DB vazio
                 const emptyDb: DB = { groups: {} };
-                await this.saveDb(emptyDb);
+                await this.enqueueWrite(() => this.saveDbInternal(emptyDb));
                 return emptyDb;
             }
             throw error;
@@ -91,13 +99,49 @@ export default class DbRepository {
     }
 
     /**
-     * Salva o banco de dados no arquivo JSON
+     * Enfileira uma operação de escrita para garantir serialização
+     * Previne race conditions ao garantir que apenas uma escrita aconteça por vez
+     */
+    private async enqueueWrite(operation: WriteOperation): Promise<void> {
+        // Adiciona a operação à fila e aguarda sua execução
+        this.writeQueue = this.writeQueue.then(async () => {
+            if (this.isWriting) {
+                // Se já está escrevendo, aguarda um pouco antes de tentar novamente
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+            this.isWriting = true;
+            try {
+                await operation();
+            } finally {
+                this.isWriting = false;
+            }
+        }).catch((error) => {
+            this.isWriting = false;
+            throw error;
+        });
+        
+        return this.writeQueue;
+    }
+
+    /**
+     * Salva o banco de dados no arquivo JSON (método interno)
+     * Deve ser chamado através de enqueueWrite para garantir thread-safety
+     */
+    private async saveDbInternal(db: DB): Promise<void> {
+        // Cria uma cópia profunda para evitar mutações durante a escrita
+        const dbCopy = JSON.parse(JSON.stringify(db)) as DB;
+        
+        await fs.writeFile(this.dbPath, JSON.stringify(dbCopy, null, 2), 'utf-8');
+        
+        // Atualiza cache com a cópia
+        this.cache.set({ key: 'db', value: dbCopy, ttlMs: this.CACHE_TTL_MS });
+    }
+
+    /**
+     * Salva o banco de dados no arquivo JSON (método público thread-safe)
      */
     private async saveDb(db: DB): Promise<void> {
-        await fs.writeFile(this.dbPath, JSON.stringify(db, null, 2), 'utf-8');
-        
-        // Atualiza cache
-        this.cache.set({ key: 'db', value: db, ttlMs: this.CACHE_TTL_MS });
+        return this.enqueueWrite(() => this.saveDbInternal(db));
     }
 
     /**
@@ -105,6 +149,28 @@ export default class DbRepository {
      */
     private invalidateCache(): void {
         this.cache.delete('db');
+    }
+
+    /**
+     * Implementa debounce para saveMember quando o membro já existe
+     * Evita múltiplas escritas desnecessárias do mesmo membro em pouco tempo
+     */
+    private saveMemberDebounced(groupId: string, member: Member): void {
+        const key = `${groupId}:${member.id}`;
+        
+        // Cancela timer anterior se existir
+        const existingTimer = this.debounceTimers.get(key);
+        if (existingTimer) {
+            clearTimeout(existingTimer);
+        }
+        
+        // Cria novo timer
+        const timer = setTimeout(async () => {
+            this.debounceTimers.delete(key);
+            await this.saveMember(groupId, member);
+        }, this.DEBOUNCE_MS);
+        
+        this.debounceTimers.set(key, timer);
     }
 
     // ========== Operações de Grupo ==========
@@ -127,20 +193,26 @@ export default class DbRepository {
 
     /**
      * Cria ou atualiza um grupo
+     * Thread-safe: usa fila de escrita para evitar race conditions
      */
     async saveGroup(group: Group): Promise<void> {
-        const db = await this.loadDb();
-        db.groups[group.id] = group;
-        await this.saveDb(db);
+        return this.enqueueWrite(async () => {
+            const db = await this.loadDb();
+            db.groups[group.id] = group;
+            await this.saveDbInternal(db);
+        });
     }
 
     /**
      * Remove um grupo
+     * Thread-safe: usa fila de escrita para evitar race conditions
      */
     async deleteGroup(groupId: string): Promise<void> {
-        const db = await this.loadDb();
-        delete db.groups[groupId];
-        await this.saveDb(db);
+        return this.enqueueWrite(async () => {
+            const db = await this.loadDb();
+            delete db.groups[groupId];
+            await this.saveDbInternal(db);
+        });
     }
 
     // ========== Operações de Membro ==========
@@ -163,91 +235,106 @@ export default class DbRepository {
 
     /**
      * Cria ou atualiza um membro em um grupo
+     * Thread-safe: usa fila de escrita para evitar race conditions
      */
     async saveMember(groupId: string, member: Member): Promise<void> {
-        const db = await this.loadDb();
-        
-        if (!db.groups[groupId]) {
-            throw new Error(`Group ${groupId} not found`);
-        }
+        return this.enqueueWrite(async () => {
+            const db = await this.loadDb();
+            
+            if (!db.groups[groupId]) {
+                throw new Error(`Group ${groupId} not found`);
+            }
 
-        db.groups[groupId].members[member.id] = member;
-        await this.saveDb(db);
+            db.groups[groupId].members[member.id] = member;
+            await this.saveDbInternal(db);
+        });
     }
 
     /**
      * Remove um membro de um grupo
+     * Thread-safe: usa fila de escrita para evitar race conditions
      */
     async deleteMember(groupId: string, memberId: string): Promise<void> {
-        const db = await this.loadDb();
-        
-        if (db.groups[groupId]?.members[memberId]) {
-            delete db.groups[groupId].members[memberId];
-            await this.saveDb(db);
-        }
+        return this.enqueueWrite(async () => {
+            const db = await this.loadDb();
+            
+            if (db.groups[groupId]?.members[memberId]) {
+                delete db.groups[groupId].members[memberId];
+                await this.saveDbInternal(db);
+            }
+        });
     }
 
     // ========== Operações de Punishment ==========
 
     /**
      * Cria uma punição para um membro
+     * Thread-safe: usa fila de escrita para evitar race conditions
      */
     async createPunishment(params: CreateAPunishmentParams): Promise<void> {
-        const db = await this.loadDb();
-        const group = db.groups[params.groupId];
-        
-        if (!group) {
-            throw new Error(`Group ${params.groupId} not found`);
-        }
+        return this.enqueueWrite(async () => {
+            const db = await this.loadDb();
+            const group = db.groups[params.groupId];
+            
+            if (!group) {
+                throw new Error(`Group ${params.groupId} not found`);
+            }
 
-        const member = group.members[params.memberId];
-        if (!member) {
-            throw new Error(`Member ${params.memberId} not found in group ${params.groupId}`);
-        }
+            const member = group.members[params.memberId];
+            if (!member) {
+                throw new Error(`Member ${params.memberId} not found in group ${params.groupId}`);
+            }
 
-        // Incrementa contador de punições
-        member.punishments[params.type] = (member.punishments[params.type] || 0) + 1;
+            // Incrementa contador de punições
+            member.punishments[params.type] = (member.punishments[params.type] || 0) + 1;
 
-        // Define punição atual
-        member.currentPunishment = {
-            type: params.type,
-            duration: params.duration,
-            reason: params.reason,
-            appliedAt: new Date(),
-            expiresAt: params.expiresAt,
-        };
+            // Define punição atual
+            member.currentPunishment = {
+                type: params.type,
+                duration: params.duration,
+                reason: params.reason,
+                appliedAt: new Date(),
+                expiresAt: params.expiresAt,
+            };
 
-        await this.saveDb(db);
+            await this.saveDbInternal(db);
+        });
     }
 
     /**
      * Remove a punição atual de um membro
+     * Thread-safe: usa fila de escrita para evitar race conditions
      */
     async removeCurrentPunishment(groupId: string, memberId: string): Promise<void> {
-        const db = await this.loadDb();
-        const member = db.groups[groupId]?.members[memberId];
-        
-        if (member) {
-            delete member.currentPunishment;
-            await this.saveDb(db);
-        }
+        return this.enqueueWrite(async () => {
+            const db = await this.loadDb();
+            const member = db.groups[groupId]?.members[memberId];
+            
+            if (member) {
+                delete member.currentPunishment;
+                await this.saveDbInternal(db);
+            }
+        });
     }
 
     /**
      * Incrementa o número de mensagens de um membro
+     * Thread-safe: usa fila de escrita para evitar race conditions
      */
     async incrementMemberMessages(groupId: string, memberId: string, messageId: string): Promise<void> {
-        const db = await this.loadDb();
-        const member = db.groups[groupId]?.members[memberId];
-        
-        if (member) {
-            member.numberOfMessages = (member.numberOfMessages || 0) + 1;
-            if (!member.menssagesIds) {
-                member.menssagesIds = [];
+        return this.enqueueWrite(async () => {
+            const db = await this.loadDb();
+            const member = db.groups[groupId]?.members[memberId];
+            
+            if (member) {
+                member.numberOfMessages = (member.numberOfMessages || 0) + 1;
+                if (!member.menssagesIds) {
+                    member.menssagesIds = [];
+                }
+                member.menssagesIds.push(messageId);
+                await this.saveDbInternal(db);
             }
-            member.menssagesIds.push(messageId);
-            await this.saveDb(db);
-        }
+        });
     }
 
     async getMemberName(groupId: string, memberId: string): Promise<string> {
