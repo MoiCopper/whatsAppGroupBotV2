@@ -9,19 +9,39 @@ import dbRepository from '../../shared/storage';
 export default class WhatsAppEventsHandler {
     private client: Client;
     private whatsAppRepository: WhatsAppRepository;
+    private qrCode: string | null = null; // Armazena o QR code atual
+    private isReady: boolean = false; // Indica se o cliente está conectado
+
     constructor(client: Client, whatsAppRepository: WhatsAppRepository) {
         this.client = client;
         this.whatsAppRepository = whatsAppRepository;
     }
 
+    /**
+     * Retorna o QR code atual (se disponível)
+     */
+    public getQrCode(): string | null {
+        return this.qrCode;
+    }
+
+    /**
+     * Retorna se o cliente está conectado e pronto
+     */
+    public getIsReady(): boolean {
+        return this.isReady;
+    }
+
     registerEvents() {
         this.client.on('qr', (qr) => {
+            this.qrCode = qr; // Armazena o QR code
             qrcode.generate(qr, { small: true });
             console.log('QR Code', qr);
         });
 
         this.client.on('ready', () => {
             console.log('Client is ready!');
+            this.isReady = true;
+            this.qrCode = null; // Limpa o QR code quando conectado
         });
 
         this.client.on(EventsType.MESSAGE_CREATE, async (msg) => {

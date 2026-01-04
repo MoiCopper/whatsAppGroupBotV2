@@ -10,6 +10,7 @@ import { WhatsAppMessageSender } from './modules/whatsApp/WhatsAppMessageSender'
 import { SetFreeCommand } from './modules/bot/commands/SetFree';
 import { PingCommand } from './modules/bot/commands/Ping';
 import { initDb } from './shared/storage';
+import { ExpressServer } from './server/expressServer';
 
 console.log('🚀 Starting WhatsApp Group Bot V2');
 
@@ -23,16 +24,25 @@ console.log('🚀 Starting WhatsApp Group Bot V2');
     }
 })();
 
-// Exemplo de servidor simples
+// Configuração do servidor Express
 const PORT = process.env.PORT || 3000;
+const expressServer = new ExpressServer(Number(PORT));
 
-console.log(`Server running on port ${PORT}`);
+// Inicializa o cliente WhatsApp
 const client = new WhatsAppClient();
 const clientInstance = client.getClient();
 
 const cache = new Cache<any>();
 const whatsAppRepository = new WhatsAppRepository(clientInstance, cache);
 const eventsHandler = new WhatsAppEventsHandler(clientInstance, whatsAppRepository);
+
+// Conecta o eventsHandler ao servidor Express para acessar o QR code
+expressServer.setEventsHandler(eventsHandler);
+
+// Inicia o servidor Express
+expressServer.start();
+
+// Registra os eventos do WhatsApp
 eventsHandler.registerEvents();
 
 new WhatsAppMessageSender(clientInstance);

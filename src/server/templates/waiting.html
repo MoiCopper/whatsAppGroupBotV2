@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Bot - Aguardando QR Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .message {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .auto-refresh {
+            margin-top: 20px;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+    <script>
+        // Auto-refresh a cada 3 segundos
+        setTimeout(function() {
+            location.reload();
+        }, 3000);
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>⏳ Aguardando QR Code</h1>
+        <div class="loading-spinner"></div>
+        <p class="message">
+            O QR Code será gerado em breve.<br>
+            Aguarde alguns instantes...
+        </p>
+        <p class="auto-refresh">🔄 Atualizando automaticamente...</p>
+    </div>
+</body>
+</html>
+
+
