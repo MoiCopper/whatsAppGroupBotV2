@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import QRCode from 'qrcode';
 import WhatsAppEventsHandler from '../modules/whatsApp/WhatsAppEventsHandler';
@@ -14,11 +14,34 @@ export class ExpressServer {
         this.app = express();
         this.port = port;
         // Define o caminho dos templates
-        // Funciona tanto em desenvolvimento (src/server/templates) quanto em produção (dist/server/templates)
-        const isProduction = __dirname.includes('dist');
-        this.templatesPath = isProduction 
-            ? join(__dirname, 'templates')
-            : join(process.cwd(), 'src', 'server', 'templates');
+        // Tenta múltiplos caminhos possíveis para funcionar em diferentes ambientes
+        const possiblePaths = [
+            // Em produção: dist/server/templates (se não bundlado)
+            join(__dirname, 'templates'),
+            // Em produção: dist/server/templates (se bundlado, __dirname pode ser dist/)
+            join(__dirname, 'server', 'templates'),
+            // Em desenvolvimento: src/server/templates
+            join(process.cwd(), 'src', 'server', 'templates'),
+            // Fallback: dist/server/templates (usando process.cwd)
+            join(process.cwd(), 'dist', 'server', 'templates'),
+        ];
+        
+        // Encontra o primeiro caminho que existe
+        let foundPath: string | null = null;
+        for (const path of possiblePaths) {
+            if (existsSync(path)) {
+                foundPath = path;
+                console.log(`[ExpressServer] Templates encontrados em: ${path}`);
+                break;
+            }
+        }
+        
+        // Define o caminho encontrado ou usa o fallback
+        this.templatesPath = foundPath || possiblePaths[possiblePaths.length - 1];
+        if (!foundPath) {
+            console.warn(`[ExpressServer] Templates não encontrados, usando: ${this.templatesPath}`);
+        }
+        
         this.setupRoutes();
     }
 
