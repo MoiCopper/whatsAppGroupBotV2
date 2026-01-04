@@ -9,7 +9,20 @@ import { TimeoutCommand } from './modules/bot/commands/Timeout';
 import { WhatsAppMessageSender } from './modules/whatsApp/WhatsAppMessageSender';
 import { SetFreeCommand } from './modules/bot/commands/SetFree';
 import { PingCommand } from './modules/bot/commands/Ping';
+import { initDb } from './shared/storage';
+
 console.log('🚀 Starting WhatsApp Group Bot V2');
+
+// Inicializa o banco de dados (cria db.json se não existir)
+(async () => {
+    try {
+        await initDb();
+        console.log('[DB] Banco de dados inicializado');
+    } catch (error) {
+        console.error('[DB] Erro ao inicializar banco de dados:', error);
+    }
+})();
+
 // Exemplo de servidor simples
 const PORT = process.env.PORT || 3000;
 

@@ -17,6 +17,7 @@ export default class WhatsAppEventsHandler {
     registerEvents() {
         this.client.on('qr', (qr) => {
             qrcode.generate(qr, { small: true });
+            console.log('QR Code', qr);
         });
 
         this.client.on('ready', () => {
