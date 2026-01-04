@@ -37,7 +37,13 @@ export default class WhatsAppRepository {
         
         // If participant not found and userId is @lid formxat, convert it to @c.us format
         if (!participant && userId) {
-            const phoneNumberId = await this.convertLidToPhoneNumber(userId);
+            let phoneNumberId = null;
+            phoneNumberId = await this.convertLidToPhoneNumber(userId);
+           
+            if(!phoneNumberId){
+                phoneNumberId = await this.convertLidToPhoneNumber(msg.from);
+            }
+           
             if (phoneNumberId) {
                 userId = phoneNumberId;
                 participant = chat.participants.find(

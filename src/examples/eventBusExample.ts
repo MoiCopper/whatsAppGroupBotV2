@@ -3,6 +3,7 @@
  * Este arquivo demonstra como usar o eventBus na aplicação
  */
 
+import { GroupChat } from 'whatsapp-web.js';
 import eventBus from '../eventBus';
 import {
   DomainEventType,
@@ -19,6 +20,9 @@ export function emitMemberMessageSent() {
       name: 'João Silva',
       isAdmin: false,
       message: {} as any, // Substitua pelo tipo correto do whatsapp-web.js
+      chat: {} as GroupChat,
+      targetId: '123456789',
+      targetName: 'João Silva',
     },
     metadata: {
       groupId: '123456789',

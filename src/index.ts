@@ -8,6 +8,7 @@ import CheckUserPunishment from './modules/user/CheckUserPunishment';
 import { TimeoutCommand } from './modules/bot/commands/Timeout';
 import { WhatsAppMessageSender } from './modules/whatsApp/WhatsAppMessageSender';
 import { SetFreeCommand } from './modules/bot/commands/SetFree';
+import { PingCommand } from './modules/bot/commands/Ping';
 console.log('🚀 Starting WhatsApp Group Bot V2');
 // Exemplo de servidor simples
 const PORT = process.env.PORT || 3000;
@@ -27,3 +28,4 @@ new CdmCommandHandler();
 new CheckUserPunishment();
 new TimeoutCommand();
 new SetFreeCommand();
+new PingCommand();
