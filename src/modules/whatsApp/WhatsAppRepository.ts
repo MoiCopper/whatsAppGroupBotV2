@@ -1,5 +1,5 @@
 import { Client, GroupChat, Message } from "whatsapp-web.js";
-import Cache from "../../utils/Cache";
+import Cache from "../../shared/utils/Cache";
 import { IWhatsAppParticipant } from "./WhatsAppDtos";
 
 export default class WhatsAppRepository {
@@ -52,7 +52,7 @@ export default class WhatsAppRepository {
     public async convertLidToPhoneNumber(userId: string): Promise<string | null> {
         // If not @lid format or pupPage not available, return null
         if (!userId || !userId.endsWith('@lid') || !this.client.pupPage) {
-            return null;
+            return userId;
         }
 
         try {

@@ -3,7 +3,7 @@
  */
 
 import { initDb } from '../initDb';
-import { Group, Member } from '../../../types/db.interface';
+import { Group, Member } from '../../types/db.interface';
 
 async function examples() {
     // Inicializa o DB

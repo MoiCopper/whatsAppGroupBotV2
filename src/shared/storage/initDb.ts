@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { DB } from '../../types/db.interface';
+import { DB } from '../types/db.interface';
 import DbRepository from './DbRepository';
 
 /**

@@ -7,7 +7,7 @@ import eventBus from '../eventBus';
 import {
   DomainEventType,
   MemberMessageSentPayload,
-} from '../types/domainEvents';
+} from '../shared/types/domainEvents';
 
 // Exemplo 1: Emitir um evento com tipo customizado
 export function emitMemberMessageSent() {

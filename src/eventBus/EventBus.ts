@@ -1,6 +1,6 @@
 import { Subject, Observable } from 'rxjs';
 import { filter } from 'rxjs/operators';
-import { DomainEvent } from '../types/domainEvents';
+import { DomainEvent } from '../shared/types/domainEvents';
 
 /**
  * EventBus reativo usando RxJS

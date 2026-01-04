@@ -1,4 +1,4 @@
-import { Message } from "whatsapp-web.js";
+import { GroupChat, Message } from "whatsapp-web.js";
 import { CurrentPunishment } from "./db.interface";
 
 /**
@@ -7,6 +7,8 @@ import { CurrentPunishment } from "./db.interface";
 export enum DomainEventType {
   MEMBER_MESSAGE_SENT = 'MEMBER_MESSAGE_SENT',
   PUNISHMENT_CHECKED = 'PUNISHMENT_CHECKED',
+  COMMAND_EXECUTED = 'COMMAND_EXECUTED',
+  SEND_MESSAGE = 'SEND_MESSAGE',
   // Adicione outros tipos de eventos aqui conforme necessário
 }
 
@@ -19,6 +21,9 @@ export interface MemberMessageSentPayload {
   name: string;
   isAdmin: boolean;
   message: any; // Ajuste o tipo conforme necessário (Message do whatsapp-web.js)
+  chat: GroupChat;
+  targetId: string | null;
+  targetName: string | null;
 }
 
 // Payload para PUNISHMENT_CHECKED
@@ -27,6 +32,23 @@ export interface PunishmentCheckedPayload {
   memberId: string;
   message: Message;
   punishment: CurrentPunishment
+  targetId: string | null;
+  name: string;
+  chat: GroupChat;
+}
+
+export interface CommandExecutedPayload {
+  command: string;
+  message: Message;
+  chat: GroupChat;
+  targetId: string | null;
+  targetName: string | null;
+}
+
+export interface SendMessagePayload {
+  chatId: string;
+  text: string;
+  message?: Message;
 }
 
 /**
