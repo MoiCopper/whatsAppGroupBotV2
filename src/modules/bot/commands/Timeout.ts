@@ -7,6 +7,7 @@ import { formatTimeDuration } from "../../../shared/utils/formatTimeDuration";
 import dbRepository from "../../../shared/storage";
 import { differenceInMilliseconds, isBefore } from "date-fns";
 import { CurrentPunishment } from "../../../shared/types/db.interface";
+import { safeDeleteMessage } from "../../../shared/utils/safeMessageDelete";
 
 export class TimeoutCommand {
     constructor() {
@@ -106,6 +107,7 @@ export class TimeoutCommand {
 
         const punishmentDurationTimeLeft = differenceInMilliseconds(punishment.expiresAt as Date, now);
         const punishmentDurationTimeLeftText = formatTimeDuration(punishmentDurationTimeLeft);
+        this.safeDelete(message);
 
         eventBus.emit<SendMessagePayload>({
             type: DomainEventType.SEND_MESSAGE,
@@ -114,6 +116,9 @@ export class TimeoutCommand {
                 text: `BOT: CALMA ${name.toUpperCase()}, VOCE ESTA DE BOCA CHEIA GLUB GLUB GLUB 🍆🍆🍆, ainda faltam ${punishmentDurationTimeLeftText} de mamada`,
             }
         });
-        message.delete(true);
+    }
+
+    async safeDelete(message: Message): Promise<boolean> {
+        return await safeDeleteMessage(message, true, 3);
     }
 }
