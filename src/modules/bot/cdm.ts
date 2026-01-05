@@ -1,6 +1,7 @@
 import { Message } from "whatsapp-web.js";
 import eventBus from "../../eventBus";
 import { DomainEventType, MemberMessageSentPayload, DomainEvent, CommandExecutedPayload, SendMessagePayload } from "../../shared/types/domainEvents";
+import dbRepository from "../../shared/storage";
 
 export class CdmCommandHandler {
     private validComands: string[] = ['/timeout', '/setFree', '/registerGroup', '/ping'];
@@ -40,8 +41,14 @@ export class CdmCommandHandler {
         return false;
     }
 
-    private async handleCommand({message, chat, targetId, targetName}: MemberMessageSentPayload): Promise<void> {
+    private async handleCommand({message, chat, targetId, targetName, memberId}: MemberMessageSentPayload): Promise<void> {
         const command = message.body.split(' ')[0];
+        const member = await dbRepository.getMember(chat.id._serialized, memberId);
+        
+        if(member?.currentPunishment) {
+            return;
+        }
+
         console.log('[CdmCommandHandler] Emitindo COMMAND_EXECUTED para comando:', command);
         eventBus.emit<CommandExecutedPayload>({
             type: DomainEventType.COMMAND_EXECUTED,
