@@ -293,7 +293,7 @@ export default class DbRepository {
             const db = await this.loadDb();
             
             if (!db.groups[groupId]) {
-                throw new Error(`Group ${groupId} not found`);
+                console.error(`Group ${groupId} not found`);
             }
 
             db.groups[groupId].members[member.id] = member;
@@ -328,12 +328,12 @@ export default class DbRepository {
             const group = db.groups[params.groupId];
             
             if (!group) {
-                throw new Error(`Group ${params.groupId} not found`);
+                console.error(`Group ${params.groupId} not found`);
             }
 
             const member = group.members[params.memberId];
             if (!member) {
-                throw new Error(`Member ${params.memberId} not found in group ${params.groupId}`);
+                console.error(`Member ${params.memberId} not found in group ${params.groupId}`);
             }
 
             // Incrementa contador de punições
