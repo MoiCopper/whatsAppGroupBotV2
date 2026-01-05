@@ -87,6 +87,7 @@ export async function safeDeleteMessage(
 
             if (!deleteResult.success) {
                 console.error(deleteResult.error || 'Falha ao deletar mensagem');
+                return false;
             }
 
             // Aguarda um tempo para garantir que o WhatsApp processou a deleção

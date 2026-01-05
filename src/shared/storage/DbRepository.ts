@@ -294,6 +294,7 @@ export default class DbRepository {
             
             if (!db.groups[groupId]) {
                 console.error(`Group ${groupId} not found`);
+                return;
             }
 
             db.groups[groupId].members[member.id] = member;
@@ -329,11 +330,13 @@ export default class DbRepository {
             
             if (!group) {
                 console.error(`Group ${params.groupId} not found`);
+                return;
             }
 
             const member = group.members[params.memberId];
             if (!member) {
                 console.error(`Member ${params.memberId} not found in group ${params.groupId}`);
+                return;
             }
 
             // Incrementa contador de punições
