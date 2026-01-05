@@ -80,8 +80,48 @@ export default class DbRepository {
 
         try {
             const data = await fs.readFile(this.dbPath, 'utf-8');
-            const parsed = JSON.parse(data);
+            
+            // Verifica se o arquivo está vazio ou só tem whitespace
+            const trimmedData = data.trim();
+            if (!trimmedData || trimmedData === '') {
+                console.warn('[DB] Arquivo db.json está vazio. Criando DB vazio.');
+                const emptyDb: DB = { groups: {} };
+                await this.enqueueWrite(() => this.saveDbInternal(emptyDb));
+                return emptyDb;
+            }
+
+            let parsed;
+            try {
+                parsed = JSON.parse(trimmedData);
+            } catch (parseError: any) {
+                // JSON inválido ou corrompido
+                console.error('[DB] Erro ao fazer parse do JSON. Arquivo pode estar corrompido:', parseError.message);
+                console.warn('[DB] Criando backup e inicializando DB vazio.');
+                
+                // Tenta fazer backup do arquivo corrompido
+                try {
+                    const backupPath = `${this.dbPath}.backup.${Date.now()}`;
+                    await fs.copyFile(this.dbPath, backupPath);
+                    console.log(`[DB] Backup criado em: ${backupPath}`);
+                } catch (backupError) {
+                    console.error('[DB] Erro ao criar backup:', backupError);
+                }
+                
+                // Cria DB vazio
+                const emptyDb: DB = { groups: {} };
+                await this.enqueueWrite(() => this.saveDbInternal(emptyDb));
+                return emptyDb;
+            }
+
             const db = this.deserializeDates(parsed) as DB;
+            
+            // Valida estrutura básica do DB
+            if (!db || typeof db !== 'object' || !db.groups) {
+                console.warn('[DB] Estrutura do DB inválida. Reinicializando.');
+                const emptyDb: DB = { groups: {} };
+                await this.enqueueWrite(() => this.saveDbInternal(emptyDb));
+                return emptyDb;
+            }
             
             // Armazena no cache
             this.cache.set({ key: 'db', value: db, ttlMs: this.CACHE_TTL_MS });
@@ -90,11 +130,22 @@ export default class DbRepository {
         } catch (error: any) {
             if (error.code === 'ENOENT') {
                 // Arquivo não existe, retorna DB vazio
+                console.log('[DB] Arquivo db.json não encontrado. Criando DB vazio.');
                 const emptyDb: DB = { groups: {} };
                 await this.enqueueWrite(() => this.saveDbInternal(emptyDb));
                 return emptyDb;
             }
-            throw error;
+            
+            // Outros erros de leitura
+            console.error('[DB] Erro ao ler arquivo db.json:', error);
+            console.warn('[DB] Tentando criar DB vazio como fallback.');
+            const emptyDb: DB = { groups: {} };
+            try {
+                await this.enqueueWrite(() => this.saveDbInternal(emptyDb));
+            } catch (writeError) {
+                console.error('[DB] Erro ao criar DB vazio:', writeError);
+            }
+            return emptyDb;
         }
     }
 
