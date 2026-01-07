@@ -1,5 +1,5 @@
 import eventBus from "../../eventBus";
-import dbRepository from "../../shared/storage";
+import { punishmentRepository } from "../../shared/storage";
 import { DomainEvent, DomainEventType, MemberMessageSentPayload, PunishmentCheckedPayload } from '../../shared/types/domainEvents';
 
 export default class CheckUserPunishment {
@@ -11,11 +11,11 @@ export default class CheckUserPunishment {
         });
     }
 
-    private async checkUserPunishment({groupId, memberId, message, chat, targetId, name}: MemberMessageSentPayload) {
+    private async checkUserPunishment({ groupId, memberId, message, chat, targetId, name, targetAuthorId }: MemberMessageSentPayload) {
         try {
-            const member = await dbRepository.getMember(groupId, memberId);
+            const punishment = await punishmentRepository.getPunishment(memberId);
 
-            if (!member?.currentPunishment) {
+            if (!punishment) {
                 return;
             }
 
@@ -23,17 +23,16 @@ export default class CheckUserPunishment {
             eventBus.emit<PunishmentCheckedPayload>({
                 type: DomainEventType.PUNISHMENT_CHECKED,
                 payload: {
-                    groupId: groupId,
                     memberId: memberId,
-                    punishment: member.currentPunishment,
+                    punishment: punishment,
                     message: message,
                     chat: chat,
                     targetId: targetId,
-                    name: name
+                    name: name,
                 },
                 metadata: {
                     groupId: groupId,
-                    userId: memberId
+                    userId: memberId,
                 }
             });
         } catch (error) {

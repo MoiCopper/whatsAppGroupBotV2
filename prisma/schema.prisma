@@ -16,7 +16,6 @@ model Group {
   name            String
   description     String?  @default("")
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
 
   // Relações
   groupMembers ChatGroups[]
@@ -32,11 +31,11 @@ model Member {
   whatsAppMemberId String   @unique // ID do membro no WhatsApp (ex: "5527995826234@c.us")
   name             String
   createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
 
   // Relações
-  groups    ChatGroups[]
-  blacklist Blacklist?
+  groups      ChatGroups[]
+  blacklist   Blacklist?
+  punishments Punishment[]
 
   @@index([whatsAppMemberId])
   @@map("members")
@@ -74,22 +73,31 @@ model ChatGroups {
   @@map("chat_groups")
 }
 
-// Histórico de punições - uma punição pertence a um ChatGroups específico
+// Histórico de punições - uma punição pertence a um Member e foi aplicada em um grupo específico
 model Punishment {
-  id          String         @id @default(uuid())
-  chatGroupId String
-  type        PunishmentType
-  duration    Int // Duração em milissegundos
-  reason      String
-  appliedAt   DateTime       @default(now())
-  expiresAt   DateTime? // Null para punições permanentes
-  isActive    Boolean        @default(true) // Se é a punição atual ativa
-  createdAt   DateTime       @default(now())
+  id          String @id @default(uuid())
+  memberId    String // Relação direta com Member
+  chatGroupId String // Contexto: em qual grupo foi aplicada
+  groupId     String // ID do grupo (para facilitar queries)
+
+  whatsAppMemberId String // ID do membro no WhatsApp (ex: "5527995826234@c.us")
+  whatsAppGroupId  String // ID do grupo no WhatsApp (ex: "120363040134234657@g.us")
+
+  type      PunishmentType
+  duration  Int // Duração em milissegundos
+  reason    String
+  appliedAt DateTime       @default(now())
+  expiresAt DateTime? // Null para punições permanentes
+  isActive  Boolean        @default(true) // Se é a punição atual ativa
+  createdAt DateTime       @default(now())
 
   // Relações
+  member    Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
   chatGroup ChatGroups @relation(fields: [chatGroupId], references: [id], onDelete: Cascade)
 
+  @@index([memberId])
   @@index([chatGroupId])
+  @@index([groupId])
   @@index([isActive])
   @@index([expiresAt])
   @@map("punishments")

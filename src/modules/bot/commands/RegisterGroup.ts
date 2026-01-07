@@ -1,20 +1,19 @@
 import { DomainEvent, DomainEventType, CommandExecutedPayload, SendMessagePayload } from "../../../shared/types/domainEvents";
 import eventBus from "../../../eventBus";
 import { GroupChat, Message } from "whatsapp-web.js";
-import dbRepository from "../../../shared/storage";
-import { Member } from "../../../shared/types/db.interface";
+import { groupRepository } from "../../../shared/storage";
 
 export class RegisterGroupCommand {
     constructor() {
-        eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({payload}: DomainEvent<CommandExecutedPayload>) => {
+        eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({ payload }: DomainEvent<CommandExecutedPayload>) => {
             console.log('[RegisterGroupCommand] Evento COMMAND_EXECUTED recebido, command:', payload.command);
-            if(payload.command === '/registerGroup'){
-                await this.execute(payload);    
+            if (payload.command === '/registerGroup') {
+                await this.execute(payload);
             }
         });
     }
 
-    async execute({message, chat}: CommandExecutedPayload): Promise<void> {
+    async execute({ message, chat }: CommandExecutedPayload): Promise<void> {
         try {
             await this.registerGroup(message, chat);
         } catch (error) {
@@ -23,12 +22,22 @@ export class RegisterGroupCommand {
         }
     }
 
-    async registerGroup(msg: Message, chat:GroupChat) {
+    async registerGroup(msg: Message, chat: GroupChat) {
         const groupId = chat.id._serialized;
         const groupName = chat.name;
 
-        const isGroupRegistered = await dbRepository.getGroup(groupId);
-        if(isGroupRegistered !== undefined){
+        if (!groupId) {
+            console.error('[RegisterGroupCommand] groupId é undefined ou null');
+            throw new Error('ID do grupo não encontrado');
+        }
+
+        if (!groupName) {
+            console.error('[RegisterGroupCommand] groupName é undefined ou null');
+            throw new Error('Nome do grupo não encontrado');
+        }
+
+        const isGroupRegistered = await groupRepository.getGroup(groupId);
+        if (isGroupRegistered) {
             eventBus.emit<SendMessagePayload>({
                 type: DomainEventType.SEND_MESSAGE,
                 payload: {
@@ -40,32 +49,14 @@ export class RegisterGroupCommand {
             return;
         }
 
-        const groupDescription = chat.description;
-        const members: Record<string, Member> = {};
-        const participants = chat.participants;
-        for(const participant of participants){
-            members[participant.id._serialized] = {
-                id: participant.id._serialized,
-                name: '',
-                isAdmin: participant.isAdmin,
-                punishments: {
-                    timeout: 0,
-                    mute: 0,
-                    ban: 0,
-                    kick: 0,
-                    warn: 0,
-                    note: '',
-                },
-                menssagesIds: [],
-                numberOfMessages: 0
-            };
-        }
+        const groupDescription = chat.description || null;
 
-        const group = await dbRepository.saveGroup({
-            id: groupId,
+        console.log('[RegisterGroupCommand] Criando grupo:', { whatsAppGroupId: groupId, name: groupName, description: groupDescription });
+
+        const group = await groupRepository.createGroup({
+            whatsAppGroupId: groupId,
             name: groupName,
-            description: groupDescription,
-            members: members,
+            description: groupDescription
         });
 
         eventBus.emit<SendMessagePayload>({

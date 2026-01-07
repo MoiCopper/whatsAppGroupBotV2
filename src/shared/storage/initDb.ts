@@ -1,44 +1,49 @@
-import { promises as fs } from 'fs';
-import { join } from 'path';
-import { DB } from '../types/db.interface';
-import DbRepository from './DbRepository';
+import 'dotenv/config';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import { DomainEventType } from '../types/domainEvents';
+import eventBus from '../../eventBus';
 
 /**
- * Inicializa o banco de dados
- * Cria o arquivo db.json se não existir
+ * Inicializa o banco de dados e testa a conexão
  */
-export async function initDb(dbPath?: string): Promise<DbRepository> {
-    const path = dbPath || join(process.cwd(), 'db.json');
-    
-    try {
-        // Tenta ler o arquivo para verificar se existe
-        await fs.access(path);
-        console.log('[DB] Arquivo db.json encontrado');
-    } catch (error: any) {
-        if (error.code === 'ENOENT') {
-            // Arquivo não existe, cria um DB vazio
-            const emptyDb: DB = { groups: {} };
-            await fs.writeFile(path, JSON.stringify(emptyDb, null, 2), 'utf-8');
-            console.log('[DB] Arquivo db.json criado');
-        } else {
-            throw error;
-        }
+export async function initDb(): Promise<void> {
+    if (!process.env.DATABASE_URL) {
+        throw new Error('DATABASE_URL não está definida nas variáveis de ambiente. Crie um arquivo .env com DATABASE_URL.');
     }
 
-    // Cria e retorna instância do repositório
-    const repository = new DbRepository(path);
-    
-    // Testa carregar o DB para garantir que está funcionando
-    await repository.getAllGroups();
-    console.log('[DB] Repositório inicializado com sucesso');
-    
-    return repository;
-}
+    // Cria o pool de conexões do PostgreSQL
+    const pool = new Pool({
+        connectionString: process.env.DATABASE_URL
+    });
 
-/**
- * Cria uma instância do DbRepository (assume que o DB já foi inicializado)
- */
-export function createDbRepository(dbPath?: string): DbRepository {
-    return new DbRepository(dbPath);
-}
+    // Cria o adapter do PostgreSQL
+    const adapter = new PrismaPg(pool);
 
+    // Inicializa o PrismaClient com o adapter
+    const prisma = new PrismaClient({
+        adapter,
+        log: process.env.NODE_ENV === 'dev' ? ['query'] : []
+    });
+
+    try {
+        // Testa a conexão com o banco
+        await prisma.$connect();
+        console.log('[DB] Conectado ao banco de dados PostgreSQL');
+
+        // Testa uma query simples
+        await prisma.$queryRaw`SELECT 1`;
+        console.log('[DB] Conexão com banco de dados verificada');
+    } catch (error) {
+        console.error('[DB] Erro ao conectar ao banco de dados:', error);
+        throw error;
+    }
+
+    eventBus.emit({
+        type: DomainEventType.DATABASE_CONNECTED,
+        payload: {
+            prismaClient: prisma
+        }
+    });
+}

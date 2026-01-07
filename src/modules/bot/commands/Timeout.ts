@@ -4,26 +4,25 @@ import { GroupChat, Message } from "whatsapp-web.js";
 import { extractTimeArgument } from "../../../shared/utils/extractTimeArgument";
 import { parseTimeToMs } from "../../../shared/utils/parseTimeToMs";
 import { formatTimeDuration } from "../../../shared/utils/formatTimeDuration";
-import dbRepository from "../../../shared/storage";
+import { punishmentRepository, groupRepository, memberRepository, chatGroupRepository } from "../../../shared/storage";
 import { differenceInMilliseconds, isBefore } from "date-fns";
-import { CurrentPunishment } from "../../../shared/types/db.interface";
 import { safeDeleteMessage } from "../../../shared/utils/safeMessageDelete";
+import { Punishment } from "@prisma/client";
 
 export class TimeoutCommand {
     constructor() {
-        eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({payload}: DomainEvent<CommandExecutedPayload>) => {
+        eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({ payload }: DomainEvent<CommandExecutedPayload>) => {
             console.log('[TimeoutCommand] Evento COMMAND_EXECUTED recebido, command:', payload.command);
-            if(payload.command === '/timeout'){
+            if (payload.command === '/timeout') {
                 console.log('[TimeoutCommand] Processando comando /timeout');
                 await this.execute(payload);
             }
         });
 
-        eventBus.onEvent(DomainEventType.PUNISHMENT_CHECKED).subscribe(async ({payload}: DomainEvent<PunishmentCheckedPayload>) => {
+        eventBus.onEvent(DomainEventType.PUNISHMENT_CHECKED).subscribe(async ({ payload }: DomainEvent<PunishmentCheckedPayload>) => {
             console.log('[TimeoutCommand] Evento PUNISHMENT_CHECKED recebido');
-            if(payload.punishment.type === 'timeout'){
+            if (payload.punishment.type === 'timeout') {
                 await this.checkAndRemoveExpiredTimeout({
-                    groupId: payload.groupId,
                     memberId: payload.memberId,
                     message: payload.message,
                     punishment: payload.punishment,
@@ -35,7 +34,7 @@ export class TimeoutCommand {
     }
 
     async execute(props: CommandExecutedPayload): Promise<void> {
-        if(!props.targetId || !props.targetName){
+        if (!props.targetId || !props.targetName) {
             eventBus.emit<SendMessagePayload>({
                 type: DomainEventType.SEND_MESSAGE,
                 payload: {
@@ -50,7 +49,8 @@ export class TimeoutCommand {
                 message: props.message,
                 chat: props.chat,
                 targetName: props.targetName,
-                targetId: props.targetId
+                targetId: props.targetId,
+                targetAuthorId: props.targetAuthorId
             });
         } catch (error) {
             console.error(error as Error, 'TimeoutCommand.execute');
@@ -58,7 +58,7 @@ export class TimeoutCommand {
         }
     }
 
-    async timeoutUser({message, chat, targetName, targetId}: {message: Message, chat: GroupChat, targetName: string, targetId: string}): Promise<void> {
+    async timeoutUser({ message, chat, targetName, targetId, targetAuthorId }: { message: Message, chat: GroupChat, targetName: string, targetId: string, targetAuthorId: string | null }): Promise<void> {
         const timeStr = extractTimeArgument(message.body);
         const timeoutMs = parseTimeToMs(timeStr);
         const durationText = formatTimeDuration(timeoutMs);
@@ -72,21 +72,53 @@ export class TimeoutCommand {
         });
 
         const expiresAt = new Date(Date.now() + timeoutMs);
-        await dbRepository.createPunishment({
-            groupId: chat.id._serialized, 
-            memberId: targetId, 
-            type: 'timeout', 
-            duration: timeoutMs, 
-            reason: 'Mamar', 
-            expiresAt
+        const group = await groupRepository.getGroup(chat.id._serialized);
+        if (!group) {
+            eventBus.emit<SendMessagePayload>({
+                type: DomainEventType.SEND_MESSAGE,
+                payload: {
+                    chatId: message.from,
+                    text: 'BOT: Grupo não encontrado',
+                    message: message
+                }
+            });
+            return;
+        }
+
+        // Obter ou criar o Member
+        let member = await memberRepository.getMember(targetId);
+        if (!member) {
+            // Criar membro se não existir
+            member = await memberRepository.createMember({
+                whatsAppMemberId: targetId,
+                name: targetName,
+                authorId: targetAuthorId ?? ''
+            });
+        }
+
+        // Obter ou criar o ChatGroups (relação entre Group e Member)
+        const chatGroup = await chatGroupRepository.getOrCreateChatGroup(group.id, member.id);
+
+        // Criar a punição usando o chatGroupId correto
+        await punishmentRepository.createPunishment({
+            memberId: member.id,
+            chatGroupId: chatGroup.id,
+            groupId: group.id,
+            type: 'timeout',
+            duration: timeoutMs,
+            reason: 'Mamar',
+            expiresAt: expiresAt,
+            isActive: true,
+            whatsAppGroupId: chat.id._serialized,
+            whatsAppMemberId: targetId
         });
     }
 
-    async checkAndRemoveExpiredTimeout({groupId, memberId, message, punishment, chat, name}: {groupId: string, memberId: string, message: Message, punishment: CurrentPunishment, chat: GroupChat, name: string}): Promise<void> {
+    async checkAndRemoveExpiredTimeout({ memberId, message, punishment, chat, name }: { memberId: string, message: Message, punishment: Punishment, chat: GroupChat, name: string }): Promise<void> {
         const now = new Date(Date.now());
         if (punishment.expiresAt && isBefore(punishment.expiresAt as Date, now)) {
-            await dbRepository.removeCurrentPunishment(groupId, memberId);
-            
+            await punishmentRepository.deactivatePunishment(memberId);
+
             // Emitir evento de timeout removido (expirado)
             //TODO mensionar o usuario que foi desmutado
             // eventBus.emit({
@@ -101,7 +133,7 @@ export class TimeoutCommand {
             //         userId: memberId
             //     }
             // });
-            
+
             return;
         }
 
@@ -112,7 +144,7 @@ export class TimeoutCommand {
         eventBus.emit<SendMessagePayload>({
             type: DomainEventType.SEND_MESSAGE,
             payload: {
-                chatId: chat.id._serialized, 
+                chatId: chat.id._serialized,
                 text: `BOT: CALMA ${name.toUpperCase()}, VOCE ESTA DE BOCA CHEIA GLUB GLUB GLUB 🍆🍆🍆, ainda faltam ${punishmentDurationTimeLeftText} de mamada`,
             }
         });

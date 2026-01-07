@@ -4,7 +4,7 @@ import eventBus from '../../eventBus';
 import { DomainEventType, MemberMessageSentPayload } from '../../shared/types/domainEvents';
 import WhatsAppRepository from './WhatsAppRepository';
 import { EventsType } from './WhatsAppDtos';
-import dbRepository from '../../shared/storage';
+import { memberRepository } from '../../shared/storage';
 
 export default class WhatsAppEventsHandler {
     private client: Client;
@@ -70,14 +70,14 @@ export default class WhatsAppEventsHandler {
 
     private async emitMemberMessageSent(msg: Message): Promise<void> {
         const groupParticipant = await this.whatsAppRepository.getParticipant(msg);
-        if(!groupParticipant.participant){
+        if (!groupParticipant.participant) {
             console.error('Group participant not found', 'WhatsAppRepository.registerEvents.MESSAGE_CREATE');
             return;
         }
         const chat = await this.whatsAppRepository.getChat(msg);
         const targetUserId = await this.getTargetUserId(msg);
         let targetName = '[FULANO(A)]';
-        if(targetUserId){
+        if (targetUserId) {
             targetName = await this.getNotifyNameById(targetUserId, chat.id._serialized);
         }
 
@@ -91,7 +91,8 @@ export default class WhatsAppEventsHandler {
                 message: msg,
                 chat: chat,
                 targetId: targetUserId,
-                targetName: targetName
+                targetName: targetName,
+                targetAuthorId: msg.mentionedIds[0] || null
             },
             metadata: {
                 groupId: chat.id._serialized,
@@ -102,22 +103,27 @@ export default class WhatsAppEventsHandler {
 
     public async getTargetUserId(msg: Message): Promise<string | null> {
         let targetUserId = null;
-        if(msg.hasQuotedMsg){
+        if (msg.hasQuotedMsg) {
             const quotedMsg = await msg.getQuotedMessage();
             const participant = await this.whatsAppRepository.getParticipant(quotedMsg);
             targetUserId = participant.id;
-        }else{
+        } else {
             targetUserId = await this.whatsAppRepository.convertLidToPhoneNumber(msg.mentionedIds[0]);
         }
         return targetUserId;
     }
 
-    public async getNotifyNameById(id: string, groupId?: string): Promise<string> {
+    public async getNotifyNameById(id: string, chatId: string): Promise<string> {
         try {
             // const contact = await this.client.getContactById(id);
             // return contact.name || dBRepository.getUserName(groupId || '', id);
-            return await dbRepository.getMemberName(groupId || '', id);
+            const member = await memberRepository.getMember(id);
+            if (!member) {
+                return '[FULANO(A)]';
+            }
+            return member.name;
         } catch (error) {
+            console.error('Error getting notify name by id', error);
             return '[FULANO(A)]';
         }
     }
