@@ -112,6 +112,9 @@ export class TimeoutCommand {
             whatsAppGroupId: chat.id._serialized,
             whatsAppMemberId: targetId
         });
+
+        chatGroup.timeoutCount++;
+        await chatGroupRepository.updateChatGroup(chatGroup);
     }
 
     async checkAndRemoveExpiredTimeout({ memberId, message, punishment, chat, name }: { memberId: string, message: Message, punishment: Punishment, chat: GroupChat, name: string }): Promise<void> {

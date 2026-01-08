@@ -22,6 +22,7 @@ import { SetFreeCommand } from './modules/bot/commands/SetFree';
 import { PingCommand } from './modules/bot/commands/Ping';
 import { initDb } from './shared/storage';
 import { ExpressServer } from './server/expressServer';
+import PersistUserData from './modules/user/PersistUserData';
 
 console.log('🚀 Starting WhatsApp Group Bot V2');
 
@@ -69,4 +70,5 @@ function startApplication() {
     new TimeoutCommand();
     new SetFreeCommand();
     new PingCommand();
+    new PersistUserData();
 }
