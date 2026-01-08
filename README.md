@@ -4,6 +4,11 @@ Projeto Node.js com TypeScript e hot reload.
 
 ## 🚀 Como usar
 
+### docker para o BD
+```bash
+docker compose up -d
+```
+
 ### Instalação
 
 ```bash
@@ -34,6 +39,18 @@ npm start
 
 ```bash
 npm run type-check
+```
+
+### Configurar ORM
+
+```bash
+npx prisma generate
+```
+
+### Gerar migrations
+
+```bash
+npx prisma migrate dev
 ```
 
 ## 📁 Estrutura do Projeto

@@ -1,0 +1,132 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Modelo de Grupo do WhatsApp
+model Group {
+  id              String   @id @default(uuid())
+  whatsAppGroupId String   @unique // ID do grupo no WhatsApp (ex: "120363040134234657@g.us")
+  name            String
+  description     String?  @default("")
+  createdAt       DateTime @default(now())
+
+  // Relações
+  groupMembers ChatGroups[]
+
+  @@index([whatsAppGroupId])
+  @@map("groups")
+}
+
+// Modelo de Membro (usuário) - pode estar em vários grupos
+model Member {
+  id               String   @id @default(uuid())
+  authorId         String   @unique // ID do autor do membro
+  whatsAppMemberId String   @unique // ID do membro no WhatsApp (ex: "5527995826234@c.us")
+  name             String
+  createdAt        DateTime @default(now())
+
+  // Relações
+  groups      ChatGroups[]
+  blacklist   Blacklist?
+  punishments Punishment[]
+
+  @@index([whatsAppMemberId])
+  @@map("members")
+}
+
+// Tabela de junção: relacionamento many-to-many entre Group e Member
+// Representa um membro em um grupo específico com suas propriedades nesse grupo
+model ChatGroups {
+  id               String  @id @default(uuid())
+  groupId          String
+  memberId         String
+  isAdmin          Boolean @default(false)
+  numberOfMessages Int     @default(0)
+
+  // Contadores de punições por tipo (para este grupo específico)
+  timeoutCount      Int     @default(0)
+  muteCount         Int     @default(0)
+  banCount          Int     @default(0)
+  permanentBanCount Int     @default(0)
+  kickCount         Int     @default(0)
+  warnCount         Int     @default(0)
+  note              String? @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member      Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  punishments Punishment[]
+
+  @@unique([groupId, memberId])
+  @@index([groupId])
+  @@index([memberId])
+  @@map("chat_groups")
+}
+
+// Histórico de punições - uma punição pertence a um Member e foi aplicada em um grupo específico
+model Punishment {
+  id          String @id @default(uuid())
+  memberId    String // Relação direta com Member
+  chatGroupId String // Contexto: em qual grupo foi aplicada
+  groupId     String // ID do grupo (para facilitar queries)
+
+  whatsAppMemberId String // ID do membro no WhatsApp (ex: "5527995826234@c.us")
+  whatsAppGroupId  String // ID do grupo no WhatsApp (ex: "120363040134234657@g.us")
+
+  type      PunishmentType
+  duration  Int // Duração em milissegundos
+  reason    String
+  appliedAt DateTime       @default(now())
+  expiresAt DateTime? // Null para punições permanentes
+  isActive  Boolean        @default(true) // Se é a punição atual ativa
+  createdAt DateTime       @default(now())
+
+  // Relações
+  member    Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  chatGroup ChatGroups @relation(fields: [chatGroupId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([chatGroupId])
+  @@index([groupId])
+  @@index([isActive])
+  @@index([expiresAt])
+  @@map("punishments")
+}
+
+// Blacklist - Membros banidos permanentemente que não devem voltar nunca mais
+model Blacklist {
+  id                String   @id @default(uuid())
+  memberId          String   @unique // Referência ao membro banido
+  reason            String // Motivo do banimento permanente
+  bannedBy          String? // ID do admin/membro que aplicou o ban (opcional)
+  bannedFromGroupId String? // ID do grupo onde foi banido (opcional, para histórico)
+  notes             String? // Observações adicionais
+  createdAt         DateTime @default(now())
+
+  // Relações
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([createdAt])
+  @@map("blacklist")
+}
+
+// Enum para tipos de punição
+enum PunishmentType {
+  timeout
+  mute
+  ban
+  permanentBan
+  kick
+  warn
+}

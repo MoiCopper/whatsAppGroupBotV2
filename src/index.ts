@@ -1,3 +1,14 @@
+// Carrega variáveis de ambiente PRIMEIRO
+import 'dotenv/config';
+
+// Inicializa Error Handler GLOBAL ANTES de qualquer outra coisa
+import { initializeErrorHandler } from './shared/error/ErrorHandler';
+initializeErrorHandler({
+    exitOnCriticalError: process.env.NODE_ENV === 'production',
+    logErrors: true,
+    emitErrorEvents: true
+});
+
 import WhatsAppClient from './modules/whatsApp/WhatsAppClient';
 import WhatsAppEventsHandler from './modules/whatsApp/WhatsAppEventsHandler';
 import WhatsAppRepository from './modules/whatsApp/WhatsAppRepository';
@@ -14,41 +25,48 @@ import { ExpressServer } from './server/expressServer';
 
 console.log('🚀 Starting WhatsApp Group Bot V2');
 
-// Inicializa o banco de dados (cria db.json se não existir)
+// Inicializa o banco de dados ANTES de qualquer outra coisa
 (async () => {
     try {
         await initDb();
         console.log('[DB] Banco de dados inicializado');
+
+        // Agora pode inicializar o resto da aplicação
+        startApplication();
     } catch (error) {
         console.error('[DB] Erro ao inicializar banco de dados:', error);
+        process.exit(1);
     }
 })();
 
-// Configuração do servidor Express
-const PORT = process.env.PORT || 3000;
-const expressServer = new ExpressServer(Number(PORT));
+function startApplication() {
 
-// Inicializa o cliente WhatsApp
-const client = new WhatsAppClient();
-const clientInstance = client.getClient();
+    // Configuração do servidor Express
+    const PORT = process.env.PORT || 3000;
+    const expressServer = new ExpressServer(Number(PORT));
 
-const cache = new Cache<any>();
-const whatsAppRepository = new WhatsAppRepository(clientInstance, cache);
-const eventsHandler = new WhatsAppEventsHandler(clientInstance, whatsAppRepository);
+    // Inicializa o cliente WhatsApp
+    const client = new WhatsAppClient();
+    const clientInstance = client.getClient();
 
-// Conecta o eventsHandler ao servidor Express para acessar o QR code
-expressServer.setEventsHandler(eventsHandler);
+    const cache = new Cache<any>();
+    const whatsAppRepository = new WhatsAppRepository(clientInstance, cache);
+    const eventsHandler = new WhatsAppEventsHandler(clientInstance, whatsAppRepository);
 
-// Inicia o servidor Express
-expressServer.start();
+    // Conecta o eventsHandler ao servidor Express para acessar o QR code
+    expressServer.setEventsHandler(eventsHandler);
 
-// Registra os eventos do WhatsApp
-eventsHandler.registerEvents();
+    // Inicia o servidor Express
+    expressServer.start();
 
-new WhatsAppMessageSender(clientInstance);
-new RegisterGroupCommand();
-new CdmCommandHandler();
-new CheckUserPunishment();
-new TimeoutCommand();
-new SetFreeCommand();
-new PingCommand();
+    // Registra os eventos do WhatsApp
+    eventsHandler.registerEvents();
+
+    new WhatsAppMessageSender(clientInstance);
+    new RegisterGroupCommand();
+    new CdmCommandHandler();
+    new CheckUserPunishment();
+    new TimeoutCommand();
+    new SetFreeCommand();
+    new PingCommand();
+}

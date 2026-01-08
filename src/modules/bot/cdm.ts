@@ -1,15 +1,15 @@
 import { Message } from "whatsapp-web.js";
 import eventBus from "../../eventBus";
 import { DomainEventType, MemberMessageSentPayload, DomainEvent, CommandExecutedPayload, SendMessagePayload } from "../../shared/types/domainEvents";
-import dbRepository from "../../shared/storage";
+import { punishmentRepository } from "../../shared/storage";
 
 export class CdmCommandHandler {
     private validComands: string[] = ['/timeout', '/setFree', '/registerGroup', '/ping'];
     constructor() {
         console.log('[CdmCommandHandler] Registrando listener para MEMBER_MESSAGE_SENT');
-        eventBus.onEvent<MemberMessageSentPayload>(DomainEventType.MEMBER_MESSAGE_SENT).subscribe(async ({payload}: DomainEvent<MemberMessageSentPayload>) => {
+        eventBus.onEvent<MemberMessageSentPayload>(DomainEventType.MEMBER_MESSAGE_SENT).subscribe(async ({ payload }: DomainEvent<MemberMessageSentPayload>) => {
             console.log('[CdmCommandHandler] Evento MEMBER_MESSAGE_SENT recebido');
-            if(this.isCommand(payload.message)) {
+            if (this.isCommand(payload.message)) {
                 await this.handleCommand(payload);
             }
         });
@@ -18,14 +18,14 @@ export class CdmCommandHandler {
     private isCommand(msg: Message): boolean {
         const isCommand = msg.body.startsWith('/');
 
-        if(!isCommand) {
+        if (!isCommand) {
             return false;
         }
-        
+
         const command = msg.body.split(' ')[0];
         const isValidCommand = this.validComands.includes(command);
-        
-        if(isValidCommand) {
+
+        if (isValidCommand) {
             return true;
         }
 
@@ -41,11 +41,11 @@ export class CdmCommandHandler {
         return false;
     }
 
-    private async handleCommand({message, chat, targetId, targetName, memberId}: MemberMessageSentPayload): Promise<void> {
+    private async handleCommand({ message, chat, targetId, targetName, memberId, targetAuthorId }: MemberMessageSentPayload): Promise<void> {
         const command = message.body.split(' ')[0];
-        const member = await dbRepository.getMember(chat.id._serialized, memberId);
-        
-        if(member?.currentPunishment) {
+        const punishment = await punishmentRepository.getPunishment(memberId);
+
+        if (punishment) {
             return;
         }
 
@@ -57,7 +57,8 @@ export class CdmCommandHandler {
                 message: message,
                 chat: chat,
                 targetId: targetId,
-                targetName: targetName
+                targetName: targetName,
+                targetAuthorId: targetAuthorId ?? ''
             }
         });
     }

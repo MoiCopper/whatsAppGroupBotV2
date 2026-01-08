@@ -1,5 +1,6 @@
 import { GroupChat, Message } from "whatsapp-web.js";
 import { CurrentPunishment } from "./db.interface";
+import { PrismaClient, Punishment } from "@prisma/client";
 
 /**
  * Tipos de eventos de domínio
@@ -9,6 +10,8 @@ export enum DomainEventType {
   PUNISHMENT_CHECKED = 'PUNISHMENT_CHECKED',
   COMMAND_EXECUTED = 'COMMAND_EXECUTED',
   SEND_MESSAGE = 'SEND_MESSAGE',
+  DATABASE_CONNECTED = 'DATABASE_CONNECTED',
+  ERROR_OCCURRED = 'ERROR_OCCURRED',
   // Adicione outros tipos de eventos aqui conforme necessário
 }
 
@@ -16,6 +19,7 @@ export enum DomainEventType {
  * Payload para o evento MEMBER_MESSAGE_SENT
  */
 export interface MemberMessageSentPayload {
+  targetAuthorId: string | null;
   groupId: string;
   memberId: string;
   name: string;
@@ -28,10 +32,9 @@ export interface MemberMessageSentPayload {
 
 // Payload para PUNISHMENT_CHECKED
 export interface PunishmentCheckedPayload {
-  groupId: string;
   memberId: string;
   message: Message;
-  punishment: CurrentPunishment
+  punishment: Punishment
   targetId: string | null;
   name: string;
   chat: GroupChat;
@@ -43,6 +46,7 @@ export interface CommandExecutedPayload {
   chat: GroupChat;
   targetId: string | null;
   targetName: string | null;
+  targetAuthorId: string;
 }
 
 export interface SendMessagePayload {
@@ -51,6 +55,16 @@ export interface SendMessagePayload {
   message?: Message;
 }
 
+export interface DatabaseConnectedPayload {
+  prismaClient: PrismaClient;
+}
+
+export interface ErrorOccurredPayload {
+  error: Error;
+  context?: string;
+  metadata?: Record<string, any>;
+  fatal?: boolean;
+}
 /**
  * Metadata genérica para eventos
  */
