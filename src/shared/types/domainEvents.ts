@@ -11,6 +11,7 @@ export enum DomainEventType {
   COMMAND_EXECUTED = 'COMMAND_EXECUTED',
   SEND_MESSAGE = 'SEND_MESSAGE',
   DATABASE_CONNECTED = 'DATABASE_CONNECTED',
+  ERROR_OCCURRED = 'ERROR_OCCURRED',
   // Adicione outros tipos de eventos aqui conforme necessário
 }
 
@@ -56,6 +57,13 @@ export interface SendMessagePayload {
 
 export interface DatabaseConnectedPayload {
   prismaClient: PrismaClient;
+}
+
+export interface ErrorOccurredPayload {
+  error: Error;
+  context?: string;
+  metadata?: Record<string, any>;
+  fatal?: boolean;
 }
 /**
  * Metadata genérica para eventos

@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { DomainEventType } from '../types/domainEvents';
 import eventBus from '../../eventBus';
+import { createDatabasePool } from './dbConfig';
 
 /**
  * Inicializa o banco de dados e testa a conexão
@@ -13,10 +14,9 @@ export async function initDb(): Promise<void> {
         throw new Error('DATABASE_URL não está definida nas variáveis de ambiente. Crie um arquivo .env com DATABASE_URL.');
     }
 
-    // Cria o pool de conexões do PostgreSQL
-    const pool = new Pool({
-        connectionString: process.env.DATABASE_URL
-    });
+    // Cria o pool de conexões do PostgreSQL com configuração SSL adequada
+    const poolConfig = createDatabasePool(process.env.DATABASE_URL);
+    const pool = new Pool(poolConfig);
 
     // Cria o adapter do PostgreSQL
     const adapter = new PrismaPg(pool);

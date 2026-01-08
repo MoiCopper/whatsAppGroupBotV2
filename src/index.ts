@@ -1,6 +1,14 @@
 // Carrega variáveis de ambiente PRIMEIRO
 import 'dotenv/config';
 
+// Inicializa Error Handler GLOBAL ANTES de qualquer outra coisa
+import { initializeErrorHandler } from './shared/error/ErrorHandler';
+initializeErrorHandler({
+    exitOnCriticalError: process.env.NODE_ENV === 'production',
+    logErrors: true,
+    emitErrorEvents: true
+});
+
 import WhatsAppClient from './modules/whatsApp/WhatsAppClient';
 import WhatsAppEventsHandler from './modules/whatsApp/WhatsAppEventsHandler';
 import WhatsAppRepository from './modules/whatsApp/WhatsAppRepository';
