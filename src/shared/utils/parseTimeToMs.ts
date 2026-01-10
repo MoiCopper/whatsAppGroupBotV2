@@ -5,7 +5,8 @@ export function parseTimeToMs(timeStr: string): number {
     }
 
     const trimmed = timeStr.trim().toLowerCase();
-    const match = trimmed.match(/^(\d+)([smhd])$/);
+    // Match "min" first, then single letter units
+    const match = trimmed.match(/^(\d+)(min|[smhd])$/);
 
     if (!match) {
         // If format is invalid, default to 10 minutes

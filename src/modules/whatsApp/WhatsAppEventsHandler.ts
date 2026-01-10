@@ -92,13 +92,26 @@ export default class WhatsAppEventsHandler {
                 chat: chat,
                 targetId: targetUserId,
                 targetName: targetName,
-                targetAuthorId: msg.mentionedIds[0] || null
+                targetAuthorId: await this.getTargetAuthorId(msg)
             },
             metadata: {
                 groupId: chat.id._serialized,
                 userId: groupParticipant.id
             }
         });
+    }
+
+    private async getTargetAuthorId(msg: Message): Promise<string | null> {
+        if (msg.hasQuotedMsg) {
+            const quotedMsg = await msg.getQuotedMessage();
+            return quotedMsg.author || null;
+        }
+
+        if (msg.mentionedIds.length > 0) {
+            return msg.mentionedIds[0] || null;
+        }
+
+        return null;
     }
 
     public async getTargetUserId(msg: Message): Promise<string | null> {

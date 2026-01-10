@@ -23,7 +23,9 @@ import { PingCommand } from './modules/bot/commands/Ping';
 import { initDb } from './shared/storage';
 import { ExpressServer } from './server/expressServer';
 import PersistUserData from './modules/user/PersistUserData';
-import { AllCommands } from './modules/bot/commands/all';
+import { AllCommands } from './modules/bot/commands/All';
+import { BanCommand } from './modules/bot/commands/Ban';
+import { DeleteMessagesCommand } from './modules/bot/commands/DeleteMessages';
 
 console.log('🚀 Starting WhatsApp Group Bot V2');
 
@@ -73,4 +75,6 @@ function startApplication() {
     new PingCommand();
     new PersistUserData();
     new AllCommands();
+    new BanCommand();
+    new DeleteMessagesCommand();
 }

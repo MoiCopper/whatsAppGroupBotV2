@@ -36,12 +36,14 @@ export default class PersistUserData {
                     authorId: message.author,
                 });
 
-                chatGroupRepository.createChatGroup({
-                    groupId: groupId,
-                    memberId: memberId,
-                    isAdmin: isAdmin,
-                    numberOfMessages: 1,
-                });
+                await this.createChatGroup(groupId, memberId, isAdmin);
+                return member;
+            }
+
+            const chatGroup = await chatGroupRepository.getChatGroup(groupId, memberId);
+
+            if (!chatGroup) {
+                await this.createChatGroup(groupId, memberId, isAdmin);
             }
 
             return member;
@@ -49,6 +51,15 @@ export default class PersistUserData {
             console.error('[PersistUserData] Erro ao persistir usuário', error);
             return null;
         }
+    }
+
+    private async createChatGroup(groupId: string, memberId: string, isAdmin: boolean): Promise<void> {
+        await chatGroupRepository.createChatGroup({
+            groupId: groupId,
+            memberId: memberId,
+            isAdmin: isAdmin,
+            numberOfMessages: 1,
+        });
     }
 
     private async updateMemberName(memberId: string, name: string): Promise<void> {

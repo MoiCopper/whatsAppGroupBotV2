@@ -14,6 +14,9 @@ export const CACHE_TTL = {
 
     // Cache de punições - dados que mudam frequentemente
     PUNISHMENT: 30 * 1000, // 30 segundos
+
+    // Cache de blacklist - dados que raramente mudam
+    BLACKLIST: 10 * 60 * 1000, // 10 minutos
 } as const;
 
 /**
@@ -24,5 +27,6 @@ export const CACHE_KEYS = {
     MEMBER: (whatsAppMemberId: string) => `member:${whatsAppMemberId}`,
     CHAT_GROUP: (groupId: string, memberId: string) => `chatgroup:${groupId}:${memberId}`,
     PUNISHMENT: (whatsAppMemberId: string) => `punishment:${whatsAppMemberId}`,
+    BLACKLIST: (memberId: string) => `blacklist:${memberId}`,
 } as const;
 

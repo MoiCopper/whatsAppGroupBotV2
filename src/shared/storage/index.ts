@@ -2,6 +2,7 @@ import MemberRepository from './MemberRepository';
 import GroupRepository from './GroupRepository';
 import ChatGroupRepository from './ChatGroupRepository';
 import PunishmentRepository from './PunishmentRepository';
+import BlacklistRepository from './BlacklistRepository';
 
 /**
  * Instância singleton do MemberRepository
@@ -39,6 +40,15 @@ const chatGroupRepository = new ChatGroupRepository();
  */
 const punishmentRepository = new PunishmentRepository();
 
+/**
+ * Instância singleton do BlacklistRepository
+ * Use esta instância em toda a aplicação
+ * 
+ * IMPORTANTE: initDb() deve ser chamado antes de usar o blacklistRepository
+ * para garantir que o PrismaClient seja inicializado corretamente
+ */
+const blacklistRepository = new BlacklistRepository();
+
 export {
     memberRepository,
     MemberRepository,
@@ -47,7 +57,9 @@ export {
     chatGroupRepository,
     ChatGroupRepository,
     punishmentRepository,
-    PunishmentRepository
+    PunishmentRepository,
+    blacklistRepository,
+    BlacklistRepository
 };
 export * from './initDb';
 
