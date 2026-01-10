@@ -13,8 +13,9 @@ export class AllCommands {
         });
     }
 
-    async execute({ message, chat }: CommandExecutedPayload): Promise<void> {
+    async execute({ message }: CommandExecutedPayload): Promise<void> {
         //get all members from group
+        const chat = await message.getChat();
         const group = await groupRepository.getGroup(chat.id._serialized);
 
         if (!group) {
