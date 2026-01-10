@@ -40,11 +40,12 @@ export default class PersistUserData {
                 return member;
             }
 
-            const chatGroup = await chatGroupRepository.getChatGroup(groupId, memberId);
+            //TODO AJUSTAR ISSO, ESTAO USANDO ID ERRADO
+            // const chatGroup = await chatGroupRepository.getChatGroup(groupId, memberId);
 
-            if (!chatGroup) {
-                await this.createChatGroup(groupId, memberId, isAdmin);
-            }
+            // if (!chatGroup) {
+            //     await this.createChatGroup(groupId, memberId, isAdmin);
+            // }
 
             return member;
         } catch (error) {
