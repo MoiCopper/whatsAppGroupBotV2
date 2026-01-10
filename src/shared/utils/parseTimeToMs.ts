@@ -6,7 +6,7 @@ export function parseTimeToMs(timeStr: string): number {
 
     const trimmed = timeStr.trim().toLowerCase();
     const match = trimmed.match(/^(\d+)([smhd])$/);
-    
+
     if (!match) {
         // If format is invalid, default to 10 minutes
         return 10 * 60 * 1000;
@@ -19,6 +19,8 @@ export function parseTimeToMs(timeStr: string): number {
         case 's':
             return value * 1000; // seconds
         case 'm':
+            return value * 60 * 1000; // minutes
+        case 'min':
             return value * 60 * 1000; // minutes
         case 'h':
             return value * 60 * 60 * 1000; // hours
