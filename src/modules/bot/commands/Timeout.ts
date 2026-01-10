@@ -13,7 +13,7 @@ export class TimeoutCommand {
     constructor() {
         eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({ payload }: DomainEvent<CommandExecutedPayload>) => {
             console.log('[TimeoutCommand] Evento COMMAND_EXECUTED recebido, command:', payload.command);
-            if (payload.command === '/timeout') {
+            if (payload.command.toLowerCase() === '/timeout') {
                 console.log('[TimeoutCommand] Processando comando /timeout');
                 await this.execute(payload);
             }

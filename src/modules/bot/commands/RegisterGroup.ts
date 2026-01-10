@@ -7,7 +7,7 @@ export class RegisterGroupCommand {
     constructor() {
         eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({ payload }: DomainEvent<CommandExecutedPayload>) => {
             console.log('[RegisterGroupCommand] Evento COMMAND_EXECUTED recebido, command:', payload.command);
-            if (payload.command === '/registerGroup') {
+            if (payload.command.toLowerCase() === '/registergroup') {
                 await this.execute(payload);
             }
         });

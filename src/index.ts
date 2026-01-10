@@ -23,6 +23,7 @@ import { PingCommand } from './modules/bot/commands/Ping';
 import { initDb } from './shared/storage';
 import { ExpressServer } from './server/expressServer';
 import PersistUserData from './modules/user/PersistUserData';
+import { AllCommands } from './modules/bot/commands/all';
 
 console.log('🚀 Starting WhatsApp Group Bot V2');
 
@@ -71,4 +72,5 @@ function startApplication() {
     new SetFreeCommand();
     new PingCommand();
     new PersistUserData();
+    new AllCommands();
 }

@@ -53,6 +53,8 @@ export interface SendMessagePayload {
   chatId: string;
   text: string;
   message?: Message;
+  mentions?: string[];
+  editMessage?: boolean;
 }
 
 export interface DatabaseConnectedPayload {

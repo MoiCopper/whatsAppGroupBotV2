@@ -7,8 +7,8 @@ export class SetFreeCommand {
     constructor() {
         eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({ payload }: DomainEvent<CommandExecutedPayload>) => {
             console.log('[SetFreeCommand] Evento COMMAND_EXECUTED recebido, command:', payload.command);
-            if (payload.command === '/setFree') {
-                console.log('[SetFreeCommand] Processando comando /setFree');
+            if (payload.command.toLowerCase() === '/setfree') {
+                console.log('[SetFreeCommand] Processando comando /setfree');
                 await this.execute(payload);
             }
         });

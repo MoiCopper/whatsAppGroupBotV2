@@ -3,16 +3,16 @@ import { CommandExecutedPayload, DomainEvent, DomainEventType, SendMessagePayloa
 
 export class PingCommand {
     constructor() {
-        eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({payload}: DomainEvent<CommandExecutedPayload>) => {
+        eventBus.onEvent<CommandExecutedPayload>(DomainEventType.COMMAND_EXECUTED).subscribe(async ({ payload }: DomainEvent<CommandExecutedPayload>) => {
             console.log('[PingCommand] Evento COMMAND_EXECUTED recebido, command:', payload.command);
-            if(payload.command === '/ping'){
+            if (payload.command.toLowerCase() === '/ping') {
                 console.log('[PingCommand] Processando comando /ping');
                 await this.execute(payload);
             }
         });
     }
 
-    async execute({message}: CommandExecutedPayload): Promise<void> {
+    async execute({ message }: CommandExecutedPayload): Promise<void> {
         eventBus.emit<SendMessagePayload>({
             type: DomainEventType.SEND_MESSAGE,
             payload: {
