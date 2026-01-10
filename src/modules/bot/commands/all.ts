@@ -1,6 +1,7 @@
 import eventBus from "../../../eventBus";
 import { groupRepository } from "../../../shared/storage";
 import { CommandExecutedPayload, DomainEvent, DomainEventType, SendMessagePayload } from "../../../shared/types/domainEvents";
+import { GroupChat } from "whatsapp-web.js";
 
 export class AllCommands {
     constructor() {
@@ -15,7 +16,7 @@ export class AllCommands {
 
     async execute({ message }: CommandExecutedPayload): Promise<void> {
         //get all members from group
-        const chat = await message.getChat();
+        const chat = await message.getChat() as GroupChat;
         const group = await groupRepository.getGroup(chat.id._serialized);
 
         if (!group) {
