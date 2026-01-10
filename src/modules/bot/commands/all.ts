@@ -35,7 +35,7 @@ export class AllCommands {
 
         const payload: SendMessagePayload = {
             chatId: message.from,
-            text: messageText,
+            text: '',
             mentions: membersIds,
             editMessage: messageText.includes('/edit'),
             message: message
