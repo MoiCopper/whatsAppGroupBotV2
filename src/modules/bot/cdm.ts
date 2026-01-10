@@ -4,7 +4,7 @@ import { DomainEventType, MemberMessageSentPayload, DomainEvent, CommandExecuted
 import { punishmentRepository } from "../../shared/storage";
 
 export class CdmCommandHandler {
-    private validComands: string[] = ['/timeout', '/setFree', '/registerGroup', '/ping', '/all', '/ban', '/deleteMessages'];
+    private validComands: string[] = ['/timeout', '/setfree', '/registergroup', '/ping', '/all', '/ban', '/deletemessages'];
     constructor() {
         console.log('[CdmCommandHandler] Registrando listener para MEMBER_MESSAGE_SENT');
         eventBus.onEvent<MemberMessageSentPayload>(DomainEventType.MEMBER_MESSAGE_SENT).subscribe(async ({ payload }: DomainEvent<MemberMessageSentPayload>) => {
@@ -23,7 +23,7 @@ export class CdmCommandHandler {
         }
 
         const command = msg.body.split(' ')[0];
-        const isValidCommand = this.validComands.includes(command);
+        const isValidCommand = this.validComands.includes(command.toLowerCase());
 
         if (isValidCommand) {
             return true;
