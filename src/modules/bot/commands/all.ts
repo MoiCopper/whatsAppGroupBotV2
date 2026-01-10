@@ -53,6 +53,10 @@ export class AllCommands {
         //     }
         // }
 
+        if (message.hasQuotedMsg) {
+            const quotedMessage = await message.getQuotedMessage();
+            payload.message = quotedMessage;
+        }
 
         eventBus.emit<SendMessagePayload>({
             type: DomainEventType.SEND_MESSAGE,
