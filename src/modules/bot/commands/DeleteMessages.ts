@@ -88,7 +88,7 @@ export class DeleteMessagesCommand {
             }
 
             // Enviar mensagem de confirmação
-            let responseText = `BOT: Deletadas ${deletedCount} mensagem${deletedCount !== 1 ? 's' : ''} de ${targetName}`;
+            let responseText = `BOT: Deletadas ${deletedCount} mensage${deletedCount !== 1 ? 'ns' : 'm'} de ${targetName}`;
             if (failedCount > 0) {
                 responseText += `\n⚠️ ${failedCount} mensagem${failedCount !== 1 ? 's' : ''} não puderam ser deletadas`;
             }
