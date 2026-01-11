@@ -1,13 +1,12 @@
 import { Member } from "@prisma/client";
 import eventBus from "../../eventBus";
 import { memberRepository, groupRepository, chatGroupRepository } from "../../shared/storage";
-import { DomainEvent, DomainEventType, MemberMessageSentPayload, PunishmentCheckedPayload } from '../../shared/types/domainEvents';
+import { DomainEvent, DomainEventType, MemberMessageSentPayload } from '../../shared/types/domainEvents';
 
 export default class PersistUserData {
     constructor() {
         console.log('[PersistUserData] Registrando listener para MEMBER_MESSAGE_SENT');
         eventBus.onEvent<MemberMessageSentPayload>(DomainEventType.MEMBER_MESSAGE_SENT).subscribe(async (event: DomainEvent<MemberMessageSentPayload>) => {
-            console.log('[PersistUserData] Evento MEMBER_MESSAGE_SENT recebido');
             const group = await groupRepository.getGroup(event.payload.groupId);
 
             if (!group) {
@@ -18,9 +17,13 @@ export default class PersistUserData {
 
             const defaultName = "[FULANO(A)]";
 
-            if ((member && member.name === defaultName) && event.payload.name !== defaultName) {
-                await this.updateMemberName(member.id, event.payload.name);
+            if (member) {
+                await this.persistChatGroupData({ groupId: group.id, member: member, isAdmin: event.payload.isAdmin });
+                if (member.name === defaultName && event.payload.name !== defaultName) {
+                    await this.updateMemberName(member.id, event.payload.name);
+                }
             }
+
         });
     }
 
@@ -36,21 +39,21 @@ export default class PersistUserData {
                     authorId: message.author,
                 });
 
-                await this.createChatGroup(groupId, memberId, isAdmin);
+                await this.createChatGroup(groupId, member.id, isAdmin);
                 return member;
             }
-
-            //TODO AJUSTAR ISSO, ESTAO USANDO ID ERRADO
-            // const chatGroup = await chatGroupRepository.getChatGroup(groupId, memberId);
-
-            // if (!chatGroup) {
-            //     await this.createChatGroup(groupId, memberId, isAdmin);
-            // }
-
             return member;
         } catch (error) {
             console.error('[PersistUserData] Erro ao persistir usuário', error);
             return null;
+        }
+    }
+
+    private async persistChatGroupData({ groupId, member, isAdmin }: { groupId: string, member: Member, isAdmin: boolean }): Promise<void> {
+        const chatGroup = await chatGroupRepository.getChatGroup(groupId, member.id);
+
+        if (!chatGroup) {
+            await this.createChatGroup(groupId, member.id, isAdmin);
         }
     }
 
