@@ -35,24 +35,53 @@ export class WhatsAppMessageSender {
         } else {
             await this.client.sendMessage(chatId, messageText);
         }
-        await this.client.sendMessage(chatId, text);
     }
 
     async replyMessage({ message, text, mentions }: { message: Message, text: string, mentions?: string[] }): Promise<void> {
-        const messageText = this.formatMessageWithMentions(text, mentions);
-        if (mentions && mentions.length > 0) {
-            await message.reply(messageText, undefined, { mentions });
-        } else {
-            await message.reply(messageText);
+        try {
+            const messageText = this.formatMessageWithMentions(text, mentions);
+            if (mentions && mentions.length > 0) {
+                await message.reply(messageText, undefined, { mentions });
+            } else {
+                await message.reply(messageText);
+            }
+        } catch (error: any) {
+            // Ignora erros relacionados ao sendSeen (marcar mensagem como lida)
+            // Esses erros não são críticos e podem ocorrer quando a estrutura da mensagem
+            // não está completamente disponível no WhatsApp Web
+            if (error?.message?.includes('markedUnread') ||
+                error?.message?.includes('sendSeen') ||
+                error?.stack?.includes('sendSeen')) {
+                console.warn('[WhatsAppMessageSender] Erro ao marcar mensagem como lida (não crítico):', error.message);
+                // A mensagem ainda foi enviada, apenas não foi marcada como lida
+                return;
+            }
+            // Re-lança outros erros
+            throw error;
         }
     }
 
     async editMessage({ message, text, mentions }: { message: Message, text: string, mentions?: string[] }): Promise<void> {
-        const messageText = this.formatMessageWithMentions(text, mentions);
-        if (mentions && mentions.length > 0) {
-            await message.edit(messageText, { mentions });
-        } else {
-            await message.edit(messageText);
+        try {
+            const messageText = this.formatMessageWithMentions(text, mentions);
+            if (mentions && mentions.length > 0) {
+                await message.edit(messageText, { mentions });
+            } else {
+                await message.edit(messageText);
+            }
+        } catch (error: any) {
+            // Ignora erros relacionados ao sendSeen (marcar mensagem como lida)
+            // Esses erros não são críticos e podem ocorrer quando a estrutura da mensagem
+            // não está completamente disponível no WhatsApp Web
+            if (error?.message?.includes('markedUnread') ||
+                error?.message?.includes('sendSeen') ||
+                error?.stack?.includes('sendSeen')) {
+                console.warn('[WhatsAppMessageSender] Erro ao marcar mensagem como lida durante edição (não crítico):', error.message);
+                // A mensagem ainda foi editada, apenas não foi marcada como lida
+                return;
+            }
+            // Re-lança outros erros
+            throw error;
         }
     }
 }

@@ -72,7 +72,22 @@ export class DeleteMessagesCommand {
             let deletedCount = 0;
             let failedCount = 0;
 
-            const replyMessage = await message.reply(`BOT: Estou deletando ${deletedCount}/${userMessages.length} mensagens de ${targetName}`);
+            let replyMessage: Message | null = null;
+            try {
+                replyMessage = await message.reply(`BOT: Estou deletando ${deletedCount}/${userMessages.length} mensagens de ${targetName}`);
+            } catch (error: any) {
+                // Ignora erros relacionados ao sendSeen (marcar mensagem como lida)
+                // Esses erros não são críticos e podem ocorrer quando a estrutura da mensagem
+                // não está completamente disponível no WhatsApp Web
+                if (error?.message?.includes('markedUnread') ||
+                    error?.message?.includes('sendSeen') ||
+                    error?.stack?.includes('sendSeen')) {
+                    console.warn('[DeleteMessagesCommand] Erro ao marcar mensagem como lida (não crítico):', error.message);
+                    // Continua sem a mensagem de progresso, mas ainda deleta as mensagens
+                } else {
+                    throw error;
+                }
+            }
 
             // Processar mensagens com controle de concorrência (máximo 3 simultâneas)
             const concurrencyLimit = 3;
@@ -81,7 +96,18 @@ export class DeleteMessagesCommand {
                     const deleted = await safeDeleteMessage(msg, true, 3);
                     if (deleted) {
                         deletedCount++;
-                        replyMessage.edit(`BOT: Estou deletando ${deletedCount}/${userMessages.length} mensagens de ${targetName}`);
+                        if (replyMessage) {
+                            try {
+                                await replyMessage.edit(`BOT: Estou deletando ${deletedCount}/${userMessages.length} mensagens de ${targetName}`);
+                            } catch (error: any) {
+                                // Ignora erros relacionados ao sendSeen durante edição
+                                if (!error?.message?.includes('markedUnread') &&
+                                    !error?.message?.includes('sendSeen') &&
+                                    !error?.stack?.includes('sendSeen')) {
+                                    console.error(`[DeleteMessagesCommand] Erro ao editar mensagem de progresso:`, error);
+                                }
+                            }
+                        }
                     } else {
                         failedCount++;
                     }
@@ -116,7 +142,9 @@ export class DeleteMessagesCommand {
                     message: message
                 }
             });
-            safeDeleteMessage(replyMessage, true, 3);
+            if (replyMessage) {
+                safeDeleteMessage(replyMessage, true, 3);
+            }
 
         } catch (error) {
             console.error('[DeleteMessagesCommand] Erro ao buscar/deletar mensagens:', error);
